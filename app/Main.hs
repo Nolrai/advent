@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, DerivingStrategies, FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables, DerivingStrategies, FlexibleContexts, RecordWildCards, OverloadedStrings #-}
 
 module Main (main) where
 import qualified Data.List as P -- P for Prelude
@@ -9,23 +9,46 @@ import Data.Conduit.List (mapAccum)
 import qualified Text.Megaparsec as M
 import Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
+import Control.Lens ((^.))
 
 main :: IO ()
 main = do
   day : inputFile : args <- getArgs 
   case parseDecimal (fromString day) of
     Just 1 -> day1 args inputFile
-    Just 2 -> day2 inputFile
+    Just 2 -> day2 inputFile args
 
-day2 :: FilePath -> IO ()
-day2 inputFile = 
-  runConduitRes $
+data SubState = SubState {aim :: Int, pos :: V2 Int}
+
+day2 :: FilePath -> [String] -> IO ()
+day2 inputFile args = do 
+  p <- runConduitRes $
     sourceFile inputFile 
       .| decodeUtf8C 
       .| linesBounded 100 
       .| mapWhileC parseDay2Command
       .| mapC toXY
-      .| sumC >>= (liftIO . print)
+      .| processing
+  putTextLn $ "pos = " <> show p
+  putTextLn $ "x * y = " <> show (p ^. _x * p ^. _y)
+  where
+    processing :: Monad m => ConduitT (V2 Int) Void m (V2 Int) 
+    processing = do
+      let [part] = args
+      case parseDecimal (fromString part) of
+        Just 1 -> sumC
+        Just 2 -> pos <$> updateC updateSubState startState
+
+startState = SubState {aim = 0, pos = V2 0 0}
+
+updateC :: Monad m => (a -> s -> s) -> s -> ConduitT a Void m s
+updateC update start =
+  fuse
+    (mapAccum (\ new soFar -> let next = update new soFar in (next, next)) start >> pure ())
+    (lastDefC start)
+
+updateSubState :: V2 Int -> SubState -> SubState
+updateSubState (V2 n a) SubState{..} = SubState {aim = aim + a, pos = pos + V2 n (n * aim)}
 
 toXY :: (Day2Dir, Int) -> V2 Int
 toXY (Forward, n) = V2 n 0
