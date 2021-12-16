@@ -10,6 +10,9 @@ import qualified Text.Megaparsec as M
 import Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 import Control.Lens ((^.))
+import Data.Vector.Unboxed as V
+import Linear.V
+import Linear.Matrix
 
 main :: IO ()
 main = do
@@ -17,6 +20,39 @@ main = do
   case parseDecimal (fromString day) of
     Just 1 -> day1 args inputFile
     Just 2 -> day2 inputFile args
+    Just 6 -> day6 inputFile args 
+
+-- Day 6 --
+
+day6 inputFile (generations:_) = do
+    let Just generations = parseDecimal 
+    putTextLn $ "generations = " <> show generations
+    let g = growthMatrix generations
+    putTextLn $ "growthMatrix = " <> show g
+    case runParser (octalDigit `sepBy` char ',') <$> readFile inputFile of
+      Left err -> die $ prettyErrorBundle err
+      Right l -> do
+        putTextLn $ "input = " <> show l
+        let start = sumV . map (b !!) $ l
+        putTextLn $ "start = " <> show start
+        let sg = (start *! g)
+        putTextLn $ "start * g = " <> show sg
+        putTextLn $ "total pop = " <> show (sum . toVector $ sg)
+        let gs = (g !* start)
+        putTextLn $ "g * start = " <> show gs
+        putTextLn $ "total pop = " <> show (sum . toVector $ gs)
+
+myBasis :: [V 9]
+myBasis = basis
+
+growthMatrix :: Int -> V 9 (V 9)
+growthMatrix 0 = identity
+growthMatrix 1 = fromVector (generate (\ i -> myBasis ! (i + 1 `mod` 9) + if i == 6 then myBasis ! 0))
+growthMatrix n
+  | even n = let g = growthMatrix (n/2) in g !*! g
+  | odd n = growthMatrix (n - 1) !*! growthMatrix 1
+
+-- Day 2 --
 
 data SubState = SubState {aim :: Int, pos :: V2 Int}
 
