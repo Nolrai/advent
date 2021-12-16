@@ -26,6 +26,7 @@ common common-options
                      , conduit
                      , conduit-extra
                      , megaparsec
+                     , linear
   
   mixins:              base hiding (Prelude)
                      , relude (Relude as Prelude)
