@@ -1,7 +1,7 @@
-{-# LANGUAGE ScopedTypeVariables, DerivingStrategies, FlexibleContexts, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, DerivingStrategies, FlexibleContexts, RecordWildCards, OverloadedStrings, NoImplicitPrelude #-}
 
 module Main (main) where
-import qualified Data.List as P -- P for Prelude
+import Relude as P
 import Linear
 import Conduit
 import Data.Conduit.Text
