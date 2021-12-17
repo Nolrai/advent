@@ -28,9 +28,10 @@ common common-options
                      , megaparsec
                      , linear
                      , lens
+                     , vector
   
   mixins:              base hiding (Prelude)
-                     , relude (Relude as Prelude)
+                     , relude
   
   ghc-options:         -Wall
                        -Wcompat
