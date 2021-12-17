@@ -39,6 +39,7 @@ day2 inputFile args = do
         Just 1 -> sumC
         Just 2 -> pos <$> updateC updateSubState startState
 
+startState :: SubState
 startState = SubState {aim = 0, pos = V2 0 0}
 
 updateC :: Monad m => (a -> s -> s) -> s -> ConduitT a Void m s
