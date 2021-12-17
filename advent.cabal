@@ -30,7 +30,7 @@ common common-options
                      , lens
   
   mixins:              base hiding (Prelude)
-                     , relude (Relude as Prelude)
+                     , relude
   
   ghc-options:         -Wall
                        -Wcompat
