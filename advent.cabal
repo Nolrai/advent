@@ -14,18 +14,23 @@ category:            Game
 build-type:          Simple
 extra-doc-files:     README.md
                      CHANGELOG.md
-tested-with:         GHC == 8.8.3
+tested-with:         GHC == 9.0.1
 
 source-repository head
   type:                git
   location:            https://github.com/chrisaupshaw/advent.git
 
 common common-options
-  build-depends:       base ^>= 4.13.0.0
-                     , Relude
+  build-depends:       base ^>= 4.15.0.0
+                     , relude ^>= 1.0.0.1
+                     , conduit
+                     , conduit-extra
+                     , megaparsec
+                     , linear
+                     , lens
   
   mixins:              base hiding (Prelude)
-                     , Relude (Relude as Prelude)
+                     , relude
   
   ghc-options:         -Wall
                        -Wcompat
