@@ -10,6 +10,9 @@ import qualified Text.Megaparsec as M
 import Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 import Control.Lens ((^.))
+import Text.Printf
+import GHC.IO.FD (openFile)
+import qualified GHC.IO.FD as Relude
 
 main :: IO ()
 main = do
@@ -17,6 +20,34 @@ main = do
   case parseDecimal (fromString day) of
     Just 1 -> day1 args inputFile
     Just 2 -> day2 inputFile args
+    Just 6 -> day6 inputFile args
+
+-- day 6 --
+
+day6 :: FilePath -> [String] -> IO ()
+day6 inputFile args = do
+  [days', outputFile] <- pure args
+  Just days <- parseDecimal . fromString <$> pure days'
+  Just start <- parseMaybe (decimal `M.sepBy` char ',') <$> readFileText inputFile
+  let firstLine = ("Initial state: " <>) . myShowList $ start
+  putTextLn firstLine
+  writeFileText outputFile (firstLine <> "\n")
+  P.drop 1 (zip [0 .. days] (P.iterate lanternFishDay (reverse start))) `forM_`
+    \ (n, result) ->
+        do 
+        let s = printf "After %2d days: %s" n (myShowList result)
+        putStrLn s
+        print (length result)
+        appendFile outputFile (s <> "\n")
+  pure ()
+
+lanternFishDay :: [Int] -> [Int]
+lanternFishDay l = (8 <$ filter (== 0) l) <> map (\ x -> if x > 0 then x - 1 else 6) l
+
+myShowList :: (Show n, Num n) => [n] -> Text
+myShowList = fromString . P.drop 1 . P.reverse . P.drop 1 . show
+
+-- day 2 --
 
 data SubState = SubState {aim :: Int, pos :: V2 Int}
 
