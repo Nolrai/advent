@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, DerivingStrategies, FlexibleContexts, RecordWildCards, OverloadedStrings, NoImplicitPrelude #-}
 
-module Main (main) where
+module Advent (main, testGM, smartPower, dumbPower) where
 import Relude as P
 import Linear
 import Conduit

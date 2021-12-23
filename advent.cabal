@@ -26,8 +26,8 @@ common common-options
                      , conduit
                      , conduit-extra
                      , megaparsec
-                     , linear
                      , lens
+                     , matrix
   
   mixins:              base hiding (Prelude)
                      , relude
@@ -51,12 +51,17 @@ common common-options
 
 executable advent
   import:              common-options
+  build-depends:       advent
   hs-source-dirs:      app
   main-is:             Main.hs
   
   ghc-options:         -threaded
                        -rtsopts
                        -with-rtsopts=-N
+
+library advent-lib
+  import: common-options
+  exposed-modules: Advent
 
 test-suite advent-test
   import:              common-options
