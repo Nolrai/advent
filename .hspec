@@ -1,0 +1,2 @@
+--failure-report test_report.log
+--rerun --rerun-all-on-success

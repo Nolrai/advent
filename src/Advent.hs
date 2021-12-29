@@ -1,11 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables, DerivingStrategies, FlexibleContexts, RecordWildCards, OverloadedStrings, NoImplicitPrelude #-}
 
-module Advent (main, testGM, smartPower, dumbPower) where
+module Advent (main, lanternFishDay, lanternFishDay', lanternFishDays, fishToVector, dumbPower, smartPower) where
 import Relude as P
-import Linear
 import Conduit
 import Data.Conduit.Text
 import Data.Conduit.List (mapAccum)
+import Linear.V2
 import qualified Text.Megaparsec as M
 import Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -13,6 +13,9 @@ import Control.Lens ((^.))
 import Text.Printf
 import GHC.IO.FD (openFile)
 import qualified GHC.IO.FD as Relude
+import Data.Matrix as X
+import Data.Vector (Vector) 
+import qualified Data.Vector as V 
 
 main :: IO ()
 main = do
@@ -27,25 +30,60 @@ main = do
 day6 :: FilePath -> [String] -> IO ()
 day6 inputFile args = do
   [days', outputFile] <- pure args
-  Just days <- parseDecimal . fromString <$> pure days'
+  Just days <- pure . parseDecimal . fromString $ days'
   Just start <- parseMaybe (decimal `M.sepBy` char ',') <$> readFileText inputFile
   let firstLine = ("Initial state: " <>) . myShowList $ start
   putTextLn firstLine
+  let v = fishToVector start
+  putTextLn $ "As vector: " <> show v 
   writeFileText outputFile (firstLine <> "\n")
-  P.drop 1 (zip [0 .. days] (P.iterate lanternFishDay (reverse start))) `forM_`
-    \ (n, result) ->
-        do 
-        let s = printf "After %2d days: %s" n (myShowList result)
-        putStrLn s
-        print (length result)
-        appendFile outputFile (s <> "\n")
-  pure ()
+  let popSize = V.sum $ lanternFishDays days v
+  appendFileText outputFile $ "oOn day " <> show days <> " there are " <> show popSize <> " fish.\n" 
 
 lanternFishDay :: [Int] -> [Int]
 lanternFishDay l = (8 <$ filter (== 0) l) <> map (\ x -> if x > 0 then x - 1 else 6) l
 
 myShowList :: (Show n, Num n) => [n] -> Text
 myShowList = fromString . P.drop 1 . P.reverse . P.drop 1 . show
+
+-- makes a histogram
+fishToVector :: [Int] -> Vector Int
+fishToVector = foldl' add (V.replicate 9 0) . map toBasis
+  where
+    add :: Vector Int -> Vector Int -> Vector Int
+    add = V.zipWith (+)
+    toBasis :: Int -> Vector Int -- take 0 to [1,0,0,0,0,0,0,0,0], take 1 to [0,1,0,0,0,0,0,0,0], ... ect.
+    toBasis = (`X.getRow` X.identity 9) . (+1)
+
+lanternFishDay' :: Vector Int -> Vector Int
+lanternFishDay' v = getRow 1 (rowVector v * growthMatrix)
+
+lanternFishDays :: Int -> Vector Int -> Vector Int
+lanternFishDays n = let g = smartPower growthMatrix n in \ v -> getRow 1 (rowVector v * g)
+
+growthMatrix :: Matrix Int
+growthMatrix = X.fromList 9 9 [
+    0,0,0,0,0,0,1,0,1, -- breeding fish make a new fish 8 days away from breeding, and then become 6 days away.
+    1,0,0,0,0,0,0,0,0, -- otherwise the fish just becomes a day closer
+    0,1,0,0,0,0,0,0,0,
+    0,0,1,0,0,0,0,0,0,
+    0,0,0,1,0,0,0,0,0,
+    0,0,0,0,1,0,0,0,0,
+    0,0,0,0,0,1,0,0,0,
+    0,0,0,0,0,0,1,0,0,
+    0,0,0,0,0,0,0,1,0
+  ]
+
+smartPower, dumbPower :: Num a => Matrix a -> Int -> Matrix a
+dumbPower m 0 = X.identity 9
+dumbPower m 1 = m
+dumbPower m n = m * dumbPower m (n - 1)
+
+smartPower m 0 = X.identity 9
+smartPower m 1 = m
+smartPower m n
+  | even n = let m' = smartPower m (n `div` 2) in m' * m'
+  | otherwise = m * smartPower m (n - 1)
 
 -- day 2 --
 
@@ -85,7 +123,7 @@ updateSubState (V2 n a) SubState{..} = SubState {aim = aim + a, pos = pos + V2 n
 toXY :: (Day2Dir, Int) -> V2 Int
 toXY (Forward, n) = V2 n 0
 toXY (Up, n) = V2 0 (-n)
-toXY (Main.Down, n) = V2 0 n
+toXY (Advent.Down, n) = V2 0 n
 
 parseMaybe :: M.Parsec Void Text a -> Text -> Maybe a
 parseMaybe = M.parseMaybe
