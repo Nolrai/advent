@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, DerivingStrategies, FlexibleContexts, RecordWildCards, OverloadedStrings, NoImplicitPrelude #-}
+{-# LANGUAGE ScopedTypeVariables, DerivingStrategies, FlexibleContexts, RecordWildCards, OverloadedStrings, NoImplicitPrelude, TupleSections #-}
 
 module Advent (main, lanternFishDay, lanternFishDay', lanternFishDays, fishToVector, dumbPower, smartPower) where
 import Relude as P
@@ -10,9 +10,6 @@ import qualified Text.Megaparsec as M
 import Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
 import Control.Lens ((^.))
-import Text.Printf
-import GHC.IO.FD (openFile)
-import qualified GHC.IO.FD as Relude
 import Data.Matrix as X
 import Data.Vector (Vector) 
 import qualified Data.Vector as V 
@@ -21,6 +18,7 @@ main :: IO ()
 main = do
   day : inputFile : args <- getArgs 
   case parseDecimal (fromString day) of
+    Just 0 -> coinProblem
     Just 1 -> day1 args inputFile
     Just 2 -> day2 inputFile args
     Just 6 -> day6 inputFile args
@@ -175,3 +173,87 @@ decimal = L.lexeme C.space L.decimal
 
 parseDecimal :: Text -> Maybe Int
 parseDecimal = parseMaybe decimal
+
+---
+
+data WhichCoin 
+  = Coin0
+  | Coin1
+  | Coin2
+  deriving stock (Ord, Eq, Enum, Bounded, Read, Show)
+
+data CoinResult
+  = Heads
+  | Tails
+  deriving stock (Ord, Eq, Enum, Bounded, Read, Show)
+
+data Strat 
+  = End WhichCoin
+  | Step WhichCoin Strat Strat
+  deriving stock (Ord, Eq, Read, Show)
+
+balencedHight :: Strat -> Maybe Int
+balencedHight (End _) = Just 0
+balencedHight (Step _ onHeads onTails) = do
+  l <- balencedHight onHeads
+  r <- balencedHight onTails
+  guard (l == r)
+  pure l
+
+enumAll :: [WhichCoin]
+enumAll = [minBound  .. maxBound]
+
+mkStrat :: Int -> [Strat] 
+mkStrat 0 = End <$> enumAll
+mkStrat n = Step <$> enumAll <*> mkStrat (n-1) <*> mkStrat (n-1)
+
+getCoin :: WhichCoin -> WhichCoin -> [CoinResult]
+getCoin x y =
+  if x == y
+    then [Heads, Heads, Tails]
+    else [Heads, Tails]
+
+scoreStrat :: Int -> Strat -> Maybe (Int, Int)
+scoreStrat tests strat = do
+  l <- sequenceA $ do
+      trickCoin <- enumAll
+      scoreStrat' tests strat (getCoin trickCoin)
+  Just (length (filter (== True) l), length l)
+  
+scoreStrat' :: Int -> Strat -> (WhichCoin -> [CoinResult]) -> [Maybe Bool]
+scoreStrat' 0 (End guess) coins =
+  pure . Just $ length (coins guess) == 2
+scoreStrat' tests (Step coinToTest onHeads onTails) coins = do
+  result <- coins coinToTest
+  scoreStrat' 
+    (tests - 1)
+    (if result == Heads then onHeads else onTails)
+    coins
+scoreStrat' _ _ _ = pure Nothing
+
+coinProblem' :: Maybe ([Strat], (Int, Int), [(Strat, (Int, Int))])
+coinProblem' = do
+  scores <- sequenceA $ [(strat,) <$> scoreStrat 3 strat | strat <- mkStrat 3]
+  (_,(_,numCases)) <- viaNonEmpty head scores
+  guard (P.all ((== numCases) . snd . snd) scores)
+  let sorted = sortOn (fst . snd) scores
+  (_, topScore) <- viaNonEmpty head sorted
+  let strats = fst <$> P.takeWhile ((== topScore) . snd) sorted
+  Just (strats, topScore, sorted)
+
+coinProblem :: IO ()
+coinProblem = do
+  let Just (strats, score, allStrats) = coinProblem'
+  putTextLn $ "number of strategies: " <> show (length (mkStrat 3))
+  putTextLn $ "best score: " <> show (fst score) <> " out of " <> show (snd score)
+  putTextLn $ "number of best strategies: " <> show (length strats)
+  printStrat `P.mapM_` allStrats
+
+printStrat :: (Strat, (Int, Int)) -> IO ()
+printStrat s = do
+  putTextLn "hit enter to print next strategy"
+  _ <- getLine
+  putTextLn $ "score: " <> show (snd s)
+  putTextLn "strat: "
+  print (fst s)
+  putTextLn ""
